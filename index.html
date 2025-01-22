@@ -1,0 +1,303 @@
+<!DOCTYPE html> 
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>資料管理系統</title>
+  <style>
+    select {
+    font-size: 16px; /* 調整字體大小 */
+    }
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+    }
+    .form-group {
+      margin-bottom: 10px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 20px;
+    }
+    th, td {
+      border: 1px solid #ccc;
+      padding: 8px;
+      text-align: left;
+    }
+    th {
+      background-color: #f4f4f4;
+    }
+    button {
+      margin-right: 5px;
+    }
+    input {
+      width: 100%;
+      max-width: 200px;
+    }
+  </style>
+</head>
+<body>
+
+<h1>資料管理系統</h1>
+
+<!-- 輸入區塊 -->
+<div id="formArea">
+  <h2>輸入/搜尋資料</h2>
+  <form id="dataForm">
+    <div class="form-group">
+      <label for="region">區域:</label>
+      <select id="region">
+        <option value="">請選擇</option>
+        <option value="北區">北區</option>
+        <option value="中區">中區</option>
+        <option value="南區">南區</option>
+        <option value="庫房">庫房</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label for="person">人員:</label>
+      <input type="text" id="person">
+    </div>
+    <div class="form-group">
+      <label for="instrument">儀器種類:</label>
+      <input type="text" id="instrument">
+    </div>
+    <div class="form-group">
+      <label for="serial">序號:</label>
+      <input type="text" id="serial">
+    </div>
+    <div class="form-group">
+      <label for="date">日期:</label>
+      <input type="date" id="date">
+    </div>
+    <div class="form-group">
+      <label for="hospital">醫院:</label>
+      <input type="text" id="hospital">
+    </div>
+    <div class="form-group">
+      <label for="location">地點:</label>
+      <input type="text" id="location">
+    </div>
+    <div class="form-group">
+      <label for="patient">病人姓名:</label>
+      <input type="text" id="patient">
+    </div>
+    <div class="form-group">
+      <label for="product">搭配產品:</label>
+      <input type="text" id="product">
+    </div>
+    <div class="form-group">
+      <label for="stockStatus">庫房狀態:</label>
+      <input type="text" id="stockStatus">
+    </div>
+    <button type="submit" id="submitButton">提交</button>
+    <button type="button" id="searchButton">搜尋</button>
+  </form>
+</div>
+
+<!-- 結果顯示區 -->
+<div id="resultArea">
+  <table>
+    <thead>
+      <tr>
+        <th>區域</th>
+        <th>人員</th>
+        <th>儀器種類</th>
+        <th>序號</th>
+        <th>日期</th>
+        <th>醫院</th>
+        <th>地點</th>
+        <th>病人姓名</th>
+        <th>搭配產品</th>
+        <th>庫房狀態</th>
+        <th>操作</th>
+      </tr>
+    </thead>
+    <tbody id="resultTable">
+      <tr><td colspan="11">尚無資料</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/9.21.0/firebase-app.js";
+  import { getFirestore, collection, addDoc, query, where, getDocs, updateDoc, deleteDoc, doc } from "https://www.gstatic.com/firebasejs/9.21.0/firebase-firestore.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyBgAxfANocYJ36xlBXwAgK0-lOCGv9b3zg",
+    authDomain: "crud-form-bf621.firebaseapp.com",
+    projectId: "crud-form-bf621",
+    storageBucket: "crud-form-bf621.appspot.com",
+    messagingSenderId: "803143241263",
+    appId: "1:803143241263:web:8f7dc84a10cd0d0c5b40da"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
+
+  // 提交表單事件
+  document.getElementById("dataForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const formData = {
+      區域: document.getElementById("region").value,
+      人員: document.getElementById("person").value,
+      儀器種類: document.getElementById("instrument").value,
+      序號: document.getElementById("serial").value,
+      日期: document.getElementById("date").value,
+      醫院: document.getElementById("hospital").value,
+      地點: document.getElementById("location").value,
+      病人姓名: document.getElementById("patient").value,
+      搭配產品: document.getElementById("product").value,
+      庫房狀態: document.getElementById("stockStatus").value
+    };
+
+    if (!formData.區域) {
+      alert("請選擇區域！");
+      return;
+    }
+
+    try {
+      const queryRef = query(
+        collection(db, "佑康測試"),
+        where("區域", "==", formData.區域),
+        where("人員", "==", formData.人員),
+        where("儀器種類", "==", formData.儀器種類),
+        where("序號", "==", formData.序號)
+      );
+      const querySnapshot = await getDocs(queryRef);
+
+      if (!querySnapshot.empty) {
+        const docId = querySnapshot.docs[0].id;
+        const docRef = doc(db, "佑康測試", docId);
+        await updateDoc(docRef, formData);
+        alert("資料已更新！");
+      } else {
+        await addDoc(collection(db, "佑康測試"), formData);
+        alert("資料已新增！");
+      }
+
+      document.getElementById("dataForm").reset();
+    } catch (error) {
+      console.error("提交資料失敗：", error);
+      alert("提交失敗，請稍後再試！");
+    }
+  });
+
+  // 搜尋按鈕事件
+ document.getElementById("searchButton").addEventListener("click", async () => {
+  const region = document.getElementById("region").value;
+  const person = document.getElementById("person").value;
+  const instrument = document.getElementById("instrument").value;  // 修正名稱
+  const serial = document.getElementById("serial").value;  // 修正名稱
+  const date = document.getElementById("date").value;
+  const hospital = document.getElementById("hospital").value;
+  const location = document.getElementById("location").value;
+  const patient = document.getElementById("patient").value;  // 修正名稱
+  const product = document.getElementById("product").value;
+  const stockStatus = document.getElementById("stockStatus").value;  // 修正名稱
+
+  const queryConditions = [];
+
+  if (region) queryConditions.push(where("區域", "==", region));
+  if (person) queryConditions.push(where("人員", "==", person));
+  if (instrument) queryConditions.push(where("儀器種類", "==", instrument));
+  if (serial) queryConditions.push(where("序號", "==", serial));
+  if (date) queryConditions.push(where("日期", "==", date));
+  if (hospital) queryConditions.push(where("醫院", "==", hospital));
+  if (location) queryConditions.push(where("地點", "==", location));
+  if (patient) queryConditions.push(where("病人姓名", "==", patient));
+  if (product) queryConditions.push(where("搭配產品", "==", product));
+  if (stockStatus) queryConditions.push(where("庫房狀態", "==", stockStatus));
+
+  if (queryConditions.length === 0) {
+    alert("請至少選擇一個搜尋條件！");
+    return;
+  }
+
+  try {
+    const queryRef = query(collection(db, "佑康測試"), ...queryConditions);
+    const querySnapshot = await getDocs(queryRef);
+    const resultTable = document.getElementById("resultTable");
+    resultTable.innerHTML = "";
+
+    if (!querySnapshot.empty) {
+      querySnapshot.forEach((docSnapshot) => {
+        const data = docSnapshot.data();
+        const docId = docSnapshot.id;
+        const row = document.createElement("tr");
+
+        row.innerHTML = `
+          <td><select>
+            <option value="庫房" ${data.區域 === "庫房" ? "selected" : ""}>庫房</option>
+            <option value="北區" ${data.區域 === "北區" ? "selected" : ""}>北區</option>
+            <option value="中區" ${data.區域 === "中區" ? "selected" : ""}>中區</option>
+            <option value="南區" ${data.區域 === "南區" ? "selected" : ""}>南區</option>
+          </select></td>
+          <td contenteditable="true">${data.人員}</td>
+          <td contenteditable="true">${data.儀器種類}</td>
+          <td contenteditable="true">${data.序號}</td>
+          <td contenteditable="true">${data.日期}</td>
+          <td contenteditable="true">${data.醫院}</td>
+          <td contenteditable="true">${data.地點}</td>
+          <td contenteditable="true">${data.病人姓名}</td>
+          <td contenteditable="true">${data.搭配產品}</td>
+          <td contenteditable="true">${data.庫房狀態}</td>
+          <td>
+            <button class="saveButton">儲存編輯</button>
+            <button class="deleteButton">刪除</button>
+          </td>
+        `;
+        resultTable.appendChild(row);
+
+        row.querySelector(".saveButton").addEventListener("click", async () => {
+          const updatedData = {
+            區域: row.children[0].querySelector("select").value, 
+            人員: row.children[1].textContent.trim(),
+            儀器種類: row.children[2].textContent.trim(),
+            序號: row.children[3].textContent.trim(),
+            日期: row.children[4].textContent.trim(),
+            醫院: row.children[5].textContent.trim(),
+            地點: row.children[6].textContent.trim(),
+            病人姓名: row.children[7].textContent.trim(),
+            搭配產品: row.children[8].textContent.trim(),
+            庫房狀態: row.children[9].textContent.trim()
+          };
+
+          try {
+            const docRef = doc(db, "佑康測試", docId);
+            await updateDoc(docRef, updatedData);
+            alert("資料已儲存！");
+          } catch (error) {
+            console.error("更新資料失敗：", error);
+            alert("儲存失敗，請稍後再試！");
+          }
+        });
+
+        row.querySelector(".deleteButton").addEventListener("click", async () => {
+          try {
+            const docRef = doc(db, "佑康測試", docId);
+            await deleteDoc(docRef);
+            row.remove();
+            alert("資料已刪除！");
+          } catch (error) {
+            console.error("刪除資料失敗：", error);
+            alert("刪除失敗，請稍後再試！");
+          }
+        });
+      });
+    } else {
+      resultTable.innerHTML = "<tr><td colspan='11'>沒有符合的資料</td></tr>";
+    }
+  } catch (error) {
+    console.error("搜尋失敗：", error);
+    alert("搜尋失敗，請稍後再試！");
+  }
+});
+
+</script>
+
+
+
+</body>
+</html>
