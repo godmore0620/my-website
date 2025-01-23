@@ -57,12 +57,20 @@
     </div>
     <div class="form-group">
       <label for="person">人員:</label>
-      <input type="text" id="person">
+      <select id="person">
+      <option value="">請選擇</option>
+      </select>
     </div>
-    <div class="form-group">
-      <label for="instrument">儀器種類:</label>
-      <input type="text" id="instrument">
-    </div>
+   <div class="form-group">
+  <label for="instrument">儀器種類:</label>
+  <select id="instrument">
+    <option value="">請選擇</option>
+    <option value="InfoV.A.C">InfoV.A.C</option>
+    <option value="ActiV.A.C">ActiV.A.C</option>
+    <option value="ULTA">ULTA</option>
+    <!-- 可根據需要添加更多選項 -->
+  </select>
+</div>
     <div class="form-group">
       <label for="serial">序號:</label>
       <input type="text" id="serial">
@@ -72,6 +80,14 @@
       <input type="date" id="date">
     </div>
     <div class="form-group">
+      <label for="hospital">原醫院:</label>
+      <input type="text" id="oldhospital">
+    </div>
+    <div class="form-group">
+      <label for="location">原地點:</label>
+      <input type="text" id="oldlocation">
+    </div>
+      <div class="form-group">
       <label for="hospital">醫院:</label>
       <input type="text" id="hospital">
     </div>
@@ -79,7 +95,11 @@
       <label for="location">地點:</label>
       <input type="text" id="location">
     </div>
-    <div class="form-group">
+     <div class="form-group">
+      <label for="patient">醫生姓名:</label>
+      <input type="text" id="doctor">
+    </div>
+      <div class="form-group">
       <label for="patient">病人姓名:</label>
       <input type="text" id="patient">
     </div>
@@ -88,9 +108,20 @@
       <input type="text" id="product">
     </div>
     <div class="form-group">
-      <label for="stockStatus">庫房狀態:</label>
-      <input type="text" id="stockStatus">
-    </div>
+  <label for="stockStatus">庫房狀態:</label>
+  <select id="stockStatus">
+    <option value="">請選擇</option>
+    <option value="不在庫">不在庫</option>
+    <option value="已入庫可領取">已入庫可領取</option>
+    <option value="出售">出售</option>
+    <option value="提供緊急使用">提供緊急使用</option>
+    <option value="維修中">維修中</option>
+    <option value="可領取">可領取</option>
+    <option value="報廢">報廢</option>
+    <option value="送原廠">送原廠</option>
+    <!-- 可根據需要添加更多選項 -->
+  </select>
+</div>
     <button type="submit" id="submitButton">提交</button>
     <button type="button" id="searchButton">搜尋</button>
   </form>
@@ -106,8 +137,11 @@
         <th>儀器種類</th>
         <th>序號</th>
         <th>日期</th>
+        <th>原醫院</th>
+        <th>原地點</th>  
         <th>醫院</th>
         <th>地點</th>
+        <th>醫生姓名</th>
         <th>病人姓名</th>
         <th>搭配產品</th>
         <th>庫房狀態</th>
@@ -122,7 +156,7 @@
 
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/9.21.0/firebase-app.js";
-  import { getFirestore, collection, addDoc, query, where, getDocs, updateDoc, deleteDoc, doc } from "https://www.gstatic.com/firebasejs/9.21.0/firebase-firestore.js";
+  import { getFirestore, collection, addDoc, query, where, getDocs, updateDoc, deleteDoc, doc , getDoc} from "https://www.gstatic.com/firebasejs/9.21.0/firebase-firestore.js";
 
   const firebaseConfig = {
     apiKey: "AIzaSyBgAxfANocYJ36xlBXwAgK0-lOCGv9b3zg",
@@ -134,7 +168,60 @@
   };
 
   const app = initializeApp(firebaseConfig);
-  const db = getFirestore(app);
+const db = getFirestore(app);
+
+// 監聽區域選擇的變更
+document.getElementById("region").addEventListener("change", async function () {
+  const region = this.value; // 取得選中的區域
+  const personSelect = document.getElementById("person");
+
+  // 清空人員下拉選單
+  personSelect.innerHTML = '<option value="">請選擇</option>';
+
+  if (region === "庫房") {
+    return; // 如果是庫房，保持空白
+  }
+
+  try {
+    // 從 Firestore 取得對應的區域人員資料
+    const settingsDocRef = doc(db, "佑康設定", "佑康人員");
+    const settingsDoc = await getDoc(settingsDocRef);
+
+    if (settingsDoc.exists()) {
+      const data = settingsDoc.data();
+      const people = data[`${region}人員`] || []; // 預設為空陣列
+
+      // 確保人員資料是陣列格式
+      if (Array.isArray(people)) {
+        people.forEach(person => {
+          const option = document.createElement("option");
+          option.value = person;
+          option.textContent = person;
+          personSelect.appendChild(option);
+        });
+      } else {
+        // 若資料不是陣列，檢查是否是字串，並轉換為陣列
+        if (typeof people === 'string') {
+          const personArray = people.split(','); // 假設字串是以逗號分隔
+          personArray.forEach(person => {
+            const option = document.createElement("option");
+            option.value = person.trim(); // 去掉多餘的空格
+            option.textContent = person.trim();
+            personSelect.appendChild(option);
+          });
+        } else {
+          console.error(`${region} 人員資料格式不正確，應該是陣列`);
+        }
+      }
+    } else {
+      console.error("找不到設定文件");
+    }
+  } catch (error) {
+    console.error("讀取人員資料失敗：", error);
+  }
+});
+
+
 
   // 提交表單事件
   document.getElementById("dataForm").addEventListener("submit", async (e) => {
@@ -145,8 +232,11 @@
       儀器種類: document.getElementById("instrument").value,
       序號: document.getElementById("serial").value,
       日期: document.getElementById("date").value,
+      原醫院: document.getElementById("oldhospital").value,
+      原地點: document.getElementById("oldlocation").value,
       醫院: document.getElementById("hospital").value,
       地點: document.getElementById("location").value,
+      醫生姓名: document.getElementById("doctor").value,    
       病人姓名: document.getElementById("patient").value,
       搭配產品: document.getElementById("product").value,
       庫房狀態: document.getElementById("stockStatus").value
@@ -185,14 +275,18 @@
   });
 
   // 搜尋按鈕事件
- document.getElementById("searchButton").addEventListener("click", async () => {
+ // 搜尋按鈕事件
+document.getElementById("searchButton").addEventListener("click", async () => {
   const region = document.getElementById("region").value;
   const person = document.getElementById("person").value;
   const instrument = document.getElementById("instrument").value;  // 修正名稱
   const serial = document.getElementById("serial").value;  // 修正名稱
   const date = document.getElementById("date").value;
+  const oldhospital = document.getElementById("oldhospital").value;
+  const oldlocation = document.getElementById("oldlocation").value;     
   const hospital = document.getElementById("hospital").value;
   const location = document.getElementById("location").value;
+  const doctor = document.getElementById("doctor").value;     
   const patient = document.getElementById("patient").value;  // 修正名稱
   const product = document.getElementById("product").value;
   const stockStatus = document.getElementById("stockStatus").value;  // 修正名稱
@@ -204,8 +298,11 @@
   if (instrument) queryConditions.push(where("儀器種類", "==", instrument));
   if (serial) queryConditions.push(where("序號", "==", serial));
   if (date) queryConditions.push(where("日期", "==", date));
+  if (oldhospital) queryConditions.push(where("原醫院", "==", oldhospital));
+  if (oldlocation) queryConditions.push(where("原地點", "==", oldlocation));     
   if (hospital) queryConditions.push(where("醫院", "==", hospital));
   if (location) queryConditions.push(where("地點", "==", location));
+  if (doctor) queryConditions.push(where("醫生姓名", "==", doctor));     
   if (patient) queryConditions.push(where("病人姓名", "==", patient));
   if (product) queryConditions.push(where("搭配產品", "==", product));
   if (stockStatus) queryConditions.push(where("庫房狀態", "==", stockStatus));
@@ -227,41 +324,137 @@
         const docId = docSnapshot.id;
         const row = document.createElement("tr");
 
-        row.innerHTML = `
-          <td><select>
-            <option value="庫房" ${data.區域 === "庫房" ? "selected" : ""}>庫房</option>
-            <option value="北區" ${data.區域 === "北區" ? "selected" : ""}>北區</option>
-            <option value="中區" ${data.區域 === "中區" ? "selected" : ""}>中區</option>
-            <option value="南區" ${data.區域 === "南區" ? "selected" : ""}>南區</option>
-          </select></td>
-          <td contenteditable="true">${data.人員}</td>
-          <td contenteditable="true">${data.儀器種類}</td>
-          <td contenteditable="true">${data.序號}</td>
-          <td contenteditable="true">${data.日期}</td>
-          <td contenteditable="true">${data.醫院}</td>
-          <td contenteditable="true">${data.地點}</td>
-          <td contenteditable="true">${data.病人姓名}</td>
-          <td contenteditable="true">${data.搭配產品}</td>
-          <td contenteditable="true">${data.庫房狀態}</td>
-          <td>
-            <button class="saveButton">儲存編輯</button>
-            <button class="deleteButton">刪除</button>
-          </td>
-        `;
+       row.innerHTML = `
+  <td>
+    <select>
+      <option value="庫房" ${data.區域 === "庫房" ? "selected" : ""}>庫房</option>
+      <option value="北區" ${data.區域 === "北區" ? "selected" : ""}>北區</option>
+      <option value="中區" ${data.區域 === "中區" ? "selected" : ""}>中區</option>
+      <option value="南區" ${data.區域 === "南區" ? "selected" : ""}>南區</option>
+    </select>
+  </td>
+  <td>
+    <select id="personSelect-${docId}">
+      <option value="">載入中...</option>
+    </select>
+  </td>
+  <td>
+    <select>
+      <option value="InfoV.A.C" ${data.儀器種類 === "InfoV.A.C" ? "selected" : ""}>InfoV.A.C</option>
+      <option value="ActiV.A.C" ${data.儀器種類 === "ActiV.A.C" ? "selected" : ""}>ActiV.A.C</option>
+      <option value="ULTA" ${data.儀器種類 === "ULTA" ? "selected" : ""}>ULTA</option>
+    </select>
+  </td>
+  <td contenteditable="true">${data.序號}</td>
+  <td><input type="date" value="${formatDate(data.日期) || ''}"></td>
+  <td contenteditable="true">${data.原醫院}</td>
+  <td contenteditable="true">${data.原地點}</td>
+  <td contenteditable="true">${data.醫院}</td>
+  <td contenteditable="true">${data.地點}</td>
+  <td contenteditable="true">${data.醫生姓名}</td>
+  <td contenteditable="true">${data.病人姓名}</td>
+  <td contenteditable="true">${data.搭配產品}</td>
+  <td>
+    <select>
+      <option value="不在庫" ${data.庫房狀態 === "不在庫" ? "selected" : ""}>不在庫</option>
+      <option value="不在庫" ${data.庫房狀態 === "已入庫可領取" ? "selected" : ""}>已入庫可領取</option>
+      <option value="不在庫" ${data.庫房狀態 === "出售" ? "selected" : ""}>出售</option>
+      <option value="不在庫" ${data.庫房狀態 === "提供緊急使用" ? "selected" : ""}>提供緊急使用</option>
+      <option value="維修中" ${data.庫房狀態 === "維修中" ? "selected" : ""}>維修中</option>
+      <option value="可領取" ${data.庫房狀態 === "可領取" ? "selected" : ""}>可領取</option>
+      <option value="報廢" ${data.庫房狀態 === "報廢" ? "selected" : ""}>報廢</option>
+      <option value="送原廠" ${data.庫房狀態 === "送原廠" ? "selected" : ""}>送原廠</option>
+    </select>
+  </td>
+  <td>
+    <button class="saveButton">儲存編輯</button>
+    <button class="deleteButton">刪除</button>
+  </td>
+`;
+
         resultTable.appendChild(row);
+
+        const regionSelect = row.querySelector("select");
+        const personSelect = row.querySelector(`#personSelect-${docId}`);
+
+        // 動態載入人員名單
+regionSelect.addEventListener("change", async () => {
+  const selectedRegion = regionSelect.value;
+
+  try {
+    const settingsDocRef = doc(db, "佑康設定", "佑康人員");
+    const settingsDoc = await getDoc(settingsDocRef);
+
+    if (settingsDoc.exists()) {
+      const regionData = settingsDoc.data();
+      const people = regionData[`${selectedRegion}人員`] || []; // 預設為空陣列
+
+      // 儲存原本的第一項選項（data.儀器人員），即使清空時也會重新插入
+      const defaultOption = document.createElement("option");
+      defaultOption.value = data.人員 || "";
+      defaultOption.textContent = data.人員 ? `${data.人員}` : "請選擇人員";
+      defaultOption.selected = true; // 設定為預設選中
+
+      // 清空選單並重新插入
+      personSelect.innerHTML = "";
+      personSelect.appendChild(defaultOption); // 確保第一項始終存在
+
+      // 動態添加來自區域設定的其他人員
+      if (Array.isArray(people)) {
+        people.forEach((person) => {
+          const option = document.createElement("option");
+          option.value = person;
+          option.textContent = person;
+
+          // 避免與 data.儀器人員 重複
+          if (person !== data.人員) {
+            personSelect.appendChild(option);
+          }
+        });
+      } else if (typeof people === "string") {
+        const personArray = people.split(",").map((p) => p.trim());
+        personArray.forEach((person) => {
+          const option = document.createElement("option");
+          option.value = person;
+          option.textContent = person;
+
+          // 避免與 data.儀器人員 重複
+          if (person !== data.人員) {
+            personSelect.appendChild(option);
+          }
+        });
+      } else {
+        console.error(
+          `${selectedRegion} 人員資料格式不正確，應為陣列或逗號分隔的字串`
+        );
+      }
+    } else {
+      console.error("無法找到人員設定文件");
+    }
+  } catch (error) {
+    console.error("載入人員資料失敗：", error);
+  }
+});
+
+
+
+        regionSelect.dispatchEvent(new Event("change")); // 初始化時載入對應人員名單
 
         row.querySelector(".saveButton").addEventListener("click", async () => {
           const updatedData = {
-            區域: row.children[0].querySelector("select").value, 
-            人員: row.children[1].textContent.trim(),
-            儀器種類: row.children[2].textContent.trim(),
-            序號: row.children[3].textContent.trim(),
-            日期: row.children[4].textContent.trim(),
-            醫院: row.children[5].textContent.trim(),
-            地點: row.children[6].textContent.trim(),
-            病人姓名: row.children[7].textContent.trim(),
-            搭配產品: row.children[8].textContent.trim(),
-            庫房狀態: row.children[9].textContent.trim()
+             區域: regionSelect.value,
+    人員: personSelect.value,
+    儀器種類: row.children[2].querySelector("select").value, // 從下拉選單取得值
+    序號: row.children[3].textContent.trim(),
+    日期: row.children[4].querySelector("input[type='date']").value,
+    原醫院: row.children[5].textContent.trim(),
+    原地點: row.children[6].textContent.trim(),
+    醫院: row.children[7].textContent.trim(),
+    地點: row.children[8].textContent.trim(),
+    醫生姓名: row.children[9].textContent.trim(),
+    病人姓名: row.children[10].textContent.trim(),
+    搭配產品: row.children[11].textContent.trim(),
+    庫房狀態: row.children[12].querySelector("select").value, 
           };
 
           try {
@@ -287,13 +480,21 @@
         });
       });
     } else {
-      resultTable.innerHTML = "<tr><td colspan='11'>沒有符合的資料</td></tr>";
+      resultTable.innerHTML = "<tr><td colspan='14'>沒有符合的資料</td></tr>";
     }
   } catch (error) {
     console.error("搜尋失敗：", error);
     alert("搜尋失敗，請稍後再試！");
   }
 });
+
+  function formatDate(date) {
+  const d = new Date(date);
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0'); // 月份從0開始，因此需要加1並補零
+  const day = String(d.getDate()).padStart(2, '0'); // 補零以符合日期格式
+  return `${year}-${month}-${day}`;
+}
 
 </script>
 
