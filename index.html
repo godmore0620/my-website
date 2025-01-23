@@ -115,6 +115,7 @@
     <option value="已入庫可領取">已入庫可領取</option>
     <option value="出售">出售</option>
     <option value="提供緊急使用">提供緊急使用</option>
+    <option value="維修完成可領取">維修完成可領取</option>
     <option value="維修中">維修中</option>
     <option value="可領取">可領取</option>
     <option value="報廢">報廢</option>
@@ -149,7 +150,7 @@
       </tr>
     </thead>
     <tbody id="resultTable">
-      <tr><td colspan="11">尚無資料</td></tr>
+      <tr><td colspan="14">尚無資料</td></tr>
     </tbody>
   </table>
 </div>
@@ -364,6 +365,7 @@ document.getElementById("searchButton").addEventListener("click", async () => {
       <option value="可領取" ${data.庫房狀態 === "可領取" ? "selected" : ""}>可領取</option>
       <option value="報廢" ${data.庫房狀態 === "報廢" ? "selected" : ""}>報廢</option>
       <option value="送原廠" ${data.庫房狀態 === "送原廠" ? "selected" : ""}>送原廠</option>
+      <option value="送原廠" ${data.庫房狀態 === "維修完成可領取" ? "selected" : ""}>維修完成可領取</option>
     </select>
   </td>
   <td>
