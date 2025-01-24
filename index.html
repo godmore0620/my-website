@@ -80,7 +80,7 @@
       <input type="date" id="date">
     </div>
     <div class="form-group">
-      <label for="hospital">原醫院:</label>
+      <label for="oldhospital">原醫院:</label>
       <input type="text" id="oldhospital">
     </div>
     <div class="form-group">
@@ -170,7 +170,22 @@
 
   const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
+ // 新增函數，獲取文檔數量並更新頁面
+  async function updateDocCount() {
+    try {
+      // 從 Firestore 獲取集合的所有文檔
+      const snapshot = await getDocs(collection(db, "佑康測試"));
+      const count = snapshot.size; // 獲取文檔數量
 
+      // 更新頁面中的文字內容
+      document.getElementById("docCount").textContent = count;
+    } catch (error) {
+      console.error("獲取文檔數量失敗：", error);
+    }
+  }
+
+  // 在頁面加載時執行該函數
+  updateDocCount();
 // 監聽區域選擇的變更
 document.getElementById("region").addEventListener("change", async function () {
   const region = this.value; // 取得選中的區域
@@ -275,7 +290,6 @@ document.getElementById("region").addEventListener("change", async function () {
     }
   });
 
-  // 搜尋按鈕事件
  // 搜尋按鈕事件
 document.getElementById("searchButton").addEventListener("click", async () => {
   const region = document.getElementById("region").value;
@@ -313,15 +327,37 @@ document.getElementById("searchButton").addEventListener("click", async () => {
     return;
   }
 
-  try {
+   try {
     const queryRef = query(collection(db, "佑康測試"), ...queryConditions);
     const querySnapshot = await getDocs(queryRef);
     const resultTable = document.getElementById("resultTable");
     resultTable.innerHTML = "";
 
+    // 初始化統計變數
+    let infoVACCount = 0;
+    let activeVACCount = 0;
+    let ultaCount = 0;
+    let locationLostCount = 0;
+
     if (!querySnapshot.empty) {
       querySnapshot.forEach((docSnapshot) => {
         const data = docSnapshot.data();
+
+        // 統計儀器種類
+        if (data.儀器種類 === "InfoV.A.C") {
+          infoVACCount++;
+        } else if (data.儀器種類 === "ActiV.A.C") {
+          activeVACCount++;
+        } else if (data.儀器種類 === "ULTA") {
+          ultaCount++;
+        }
+
+        // 統計地點中出現【遺失】
+        if (data.地點 && data.地點.includes("遺失")) {
+          locationLostCount++;
+        }
+
+        // 繼續生成表格的邏輯...
         const docId = docSnapshot.id;
         const row = document.createElement("tr");
 
@@ -358,14 +394,14 @@ document.getElementById("searchButton").addEventListener("click", async () => {
   <td>
     <select>
       <option value="不在庫" ${data.庫房狀態 === "不在庫" ? "selected" : ""}>不在庫</option>
-      <option value="不在庫" ${data.庫房狀態 === "已入庫可領取" ? "selected" : ""}>已入庫可領取</option>
-      <option value="不在庫" ${data.庫房狀態 === "出售" ? "selected" : ""}>出售</option>
-      <option value="不在庫" ${data.庫房狀態 === "提供緊急使用" ? "selected" : ""}>提供緊急使用</option>
+      <option value="已入庫可領取" ${data.庫房狀態 === "已入庫可領取" ? "selected" : ""}>已入庫可領取</option>
+      <option value="出售" ${data.庫房狀態 === "出售" ? "selected" : ""}>出售</option>
+      <option value="提供緊急使用" ${data.庫房狀態 === "提供緊急使用" ? "selected" : ""}>提供緊急使用</option>
       <option value="維修中" ${data.庫房狀態 === "維修中" ? "selected" : ""}>維修中</option>
       <option value="可領取" ${data.庫房狀態 === "可領取" ? "selected" : ""}>可領取</option>
       <option value="報廢" ${data.庫房狀態 === "報廢" ? "selected" : ""}>報廢</option>
       <option value="送原廠" ${data.庫房狀態 === "送原廠" ? "selected" : ""}>送原廠</option>
-      <option value="送原廠" ${data.庫房狀態 === "維修完成可領取" ? "selected" : ""}>維修完成可領取</option>
+      <option value="維修完成可領取" ${data.庫房狀態 === "維修完成可領取" ? "selected" : ""}>維修完成可領取</option>
     </select>
   </td>
   <td>
@@ -481,6 +517,16 @@ regionSelect.addEventListener("change", async () => {
           }
         });
       });
+     const statsRow = document.createElement("tr");
+      statsRow.innerHTML = `
+        <td colspan="14">
+          InfoV.A.C : ${infoVACCount} 台<br>
+          ActiV.A.C : ${activeVACCount} 台<br>
+          ULTA : ${ultaCount} 台<br>
+          遺失 : ${locationLostCount} 台
+        </td>
+      `;
+      resultTable.appendChild(statsRow);    
     } else {
       resultTable.innerHTML = "<tr><td colspan='14'>沒有符合的資料</td></tr>";
     }
@@ -498,9 +544,25 @@ regionSelect.addEventListener("change", async () => {
   return `${year}-${month}-${day}`;
 }
 
+    
+  async function clearCollection(collectionName) {
+            // 使用 collection() 來獲取集合
+            const querySnapshot = await getDocs(collection(db, collectionName));
+            querySnapshot.forEach(async (docSnap) => {
+                // 使用 deleteDoc() 來刪除文檔
+                await deleteDoc(doc(db, collectionName, docSnap.id));
+                console.log(`刪除文件：${docSnap.id}`);
+            });
+            console.log(`集合 ${collectionName} 清空完成`);
+        }
+
+        // 你可以在這裡設置一個事件來觸發清空集合的操作
+        window.clearCollection = clearCollection;
 </script>
 
 
+總資料數: <span id="docCount"></span> 筆
+<button onclick="clearCollection('佑康測試')">清空集合</button>
 
 </body>
 </html>
