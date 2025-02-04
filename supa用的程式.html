@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>資料管理系統</title>
+  <style>
+   .table-container {
+  width: 100%;
+  overflow-x: auto; /* 允許橫向滾動 */
+  white-space: nowrap; /* 防止內容自動換行 */
+}
+
+/* 讓表格本身維持固定寬度，不跟著縮放 */
+table {
+  width: 1500px; /* 設定一個較大的寬度，確保不會被壓縮 */
+  border-collapse: collapse;
+}  
+   input {
+    width: 100%;
+    font-size: 16px;
+    border: none;
+    border-bottom: 1px solid #ccc; /* 添加底線讓使用者知道這是輸入框 */
+    outline: none;
+    background-color: transparent;
+    transition: border-color 0.3s ease-in-out;}
+
+   input:focus {
+     border-bottom: 2px solid #007bff; /* 聚焦時顯示藍色下劃線，提升可見性 */}
+    select {
+    font-size: 16px; /* 調整字體大小 */
+    }
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+    }
+    .form-group {
+      margin-bottom: 10px;
+    }
+  
+    th, td {
+      border: 1px solid #ccc;
+      padding: 8px;
+      text-align: left;
+    }
+    th {
+      background-color: #f4f4f4;
+    }
+    button {
+      margin-right: 5px;
+    }
+    input {
+      width: 100%;
+      max-width: 200px;
+    }
+  </style>
+</head>
+<body>
+
+<h1>資料管理系統</h1>
+
+<!-- 輸入區塊 -->
+<div id="formArea">
+  <h2>輸入/搜尋資料</h2>
+  <form id="dataForm">
+    <div class="form-group">
+      <label for="region">區域:</label>
+      <select id="region">
+        <option value="">請選擇</option>
+        <option value="北區">北區</option>
+        <option value="中區">中區</option>
+        <option value="南區">南區</option>
+        <option value="庫房">庫房</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label for="person">人員:</label>
+      <select id="person">
+      <option value="">請選擇</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label for="instrument">儀器種類:</label>
+      <input type="text" id="instrument">
+    </div>
+    <div class="form-group">
+      <label for="serial">序號:</label>
+      <input type="text" id="serial">
+    </div>
+    <div class="form-group">
+      <label for="date">日期:</label>
+      <input type="date" id="date">
+    </div>
+    <div class="form-group">
+      <label for="oldhospital">原醫院:</label>
+      <input type="text" id="oldhospital">
+    </div>
+    <div class="form-group">
+      <label for="oldlocation">原地點:</label>
+      <input type="text" id="oldlocation">
+    </div>
+    <div class="form-group">
+      <label for="hospital">醫院:</label>
+      <input type="text" id="hospital">
+    </div>
+    <div class="form-group">
+      <label for="location">地點:</label>
+      <input type="text" id="location">
+    </div>
+     <div class="form-group">
+      <label for="patient">醫生姓名:</label>
+      <input type="text" id="doctor">
+    </div>
+      <div class="form-group">
+      <label for="patient">病人姓名:</label>
+      <input type="text" id="patient">
+    </div>
+    <div class="form-group">
+      <label for="product">搭配產品:</label>
+      <input type="text" id="product">
+    </div>
+    <div class="form-group">
+      <label for="stockStatus">庫房狀態:</label>
+      <input type="text" id="stockStatus">
+    </div>
+    <button type="submit" id="submitButton">提交</button>
+    <button type="button" id="searchButton">搜尋</button>
+    <button id="clearDataBtn">清空Supabase</button>
+    <button id="syncButton">匯入Sheet</button>
+    <p id="status"></p>  <!-- 這個一定要有！ -->
+
+    資料筆數: <span id="recordCount">載入中...</span>
+    
+    
+  </form>
+</div>
+
+<!-- 結果顯示區 -->
+<div id="resultArea">
+  <table>
+    <thead>
+      <tr>
+        <th>區域</th>
+        <th>人員</th>
+        <th>儀器種類</th>
+        <th>序號</th>
+        <th>日期</th>
+        <th>原醫院</th>
+        <th>原地點</th>  
+        <th>醫院</th>
+        <th>地點</th>
+        <th>醫生姓名</th>
+        <th>病人姓名</th>
+        <th>搭配產品</th>
+        <th>庫房狀態</th>
+        <th>操作</th>
+      </tr>
+    </thead>
+    <tbody id="resultTable">
+      <tr><td colspan="14">尚無資料</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<script type="module">
+  import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
+
+  const supabase = createClient('https://cnrjbwadxrxvgjijlzll.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNucmpid2FkeHJ4dmdqaWpsemxsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Mzc3MDA5MzIsImV4cCI6MjA1MzI3NjkzMn0.qOBSnrgpNWI1g2mt9iR9S-Nvwj5kAs0vXqhdue4nIoo');
+  const recordCountElement = document.getElementById('recordCount');
+  const clearDataBtn = document.getElementById('clearDataBtn');
+  // 監聽區域選擇的變更
+  document.getElementById("region").addEventListener("change", async function () {
+    const region = this.value; // 取得選中的區域
+    const personSelect = document.getElementById("person");
+
+    // 清空人員下拉選單
+    personSelect.innerHTML = '<option value="">請選擇</option>';
+
+    if (region === "庫房") {
+      return; // 如果是庫房，保持空白
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from('佑康設定')
+        .select('人員')
+        .eq('區域', region);
+
+      if (error) {
+        console.error("Error fetching people data:", error);
+        return;
+      }
+
+      data.forEach(person => {
+        const option = document.createElement("option");
+        option.value = person;
+        option.textContent = person;
+        personSelect.appendChild(option);
+      });
+    } catch (error) {
+      console.error("Error fetching data:", error);
+    }
+  });
+
+  // 提交表單事件
+  document.getElementById("dataForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const formData = {
+      區域: document.getElementById("region").value,
+      人員: document.getElementById("person").value,
+      儀器種類: document.getElementById("instrument").value,
+      序號: document.getElementById("serial").value,
+      日期: document.getElementById("date").value,
+      原醫院: document.getElementById("oldhospital").value,
+      原地點: document.getElementById("oldlocation").value,
+      醫院: document.getElementById("hospital").value,
+      地點: document.getElementById("location").value,
+      醫生姓名: document.getElementById("doctor").value,
+      病人姓名: document.getElementById("patient").value,
+      搭配產品: document.getElementById("product").value,
+      庫房狀態: document.getElementById("stockStatus").value
+    };
+
+    if (!formData.區域) {
+      alert("請選擇區域！");
+      return;
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from('佑康測試')
+        .upsert([formData]);
+
+      if (error) {
+        console.error("Error submitting data:", error);
+        alert("提交失敗，請稍後再試！");
+      } else {
+        alert("資料已提交！");
+      }
+
+      document.getElementById("dataForm").reset();
+    } catch (error) {
+      console.error("提交資料失敗：", error);
+      alert("提交失敗，請稍後再試！");
+    }
+  });
+
+  // 搜尋按鈕事件
+  document.getElementById("searchButton").addEventListener("click", async () => {
+    const region = document.getElementById("region").value;
+    const person = document.getElementById("person").value;
+    const instrument = document.getElementById("instrument").value;
+    const serial = document.getElementById("serial").value;
+    const date = document.getElementById("date").value;
+    const oldhospital = document.getElementById("oldhospital").value;
+    const oldlocation = document.getElementById("oldlocation").value;
+    const hospital = document.getElementById("hospital").value;
+    const location = document.getElementById("location").value;
+    const doctor = document.getElementById("doctor").value;
+    const patient = document.getElementById("patient").value;
+    const product = document.getElementById("product").value;
+    const stockStatus = document.getElementById("stockStatus").value;
+
+    try {
+      const { data, error } = await supabase
+        .from('佑康測試')
+        .select('*')
+        .ilike('區域', `%${region}%`)
+        .ilike('人員', `%${person}%`)
+        .ilike('儀器種類', `%${instrument}%`)
+        .ilike('序號', `%${serial}%`)
+        .ilike('日期', `%${date}%`)
+        .ilike('原醫院', `%${oldhospital}%`)
+        .ilike('原地點', `%${oldlocation}%`)
+        .ilike('醫院', `%${hospital}%`)
+        .ilike('地點', `%${location}%`)
+        .ilike('醫生姓名', `%${doctor}%`)
+        .ilike('病人姓名', `%${patient}%`)
+        .ilike('搭配產品', `%${product}%`)
+        .ilike('庫房狀態', `%${stockStatus}%`);
+
+      if (error) {
+        console.error("Error fetching data:", error);
+        return;
+      }
+
+      const resultTable = document.getElementById("resultTable");
+      resultTable.innerHTML = '';
+
+      data.forEach(item => {
+        const row = document.createElement("tr");
+        row.innerHTML = `
+         <td><input type="text" value="${item.區域}" class="edit-input"></td>
+         <td><input type="text" value="${item.人員}" class="edit-input"></td>
+         <td><input type="text" value="${item.儀器種類}" class="edit-input"></td>
+         <td><input type="text" value="${item.序號}" class="edit-input"></td>
+         <td><input type="date" value="${item.日期}" class="edit-input"></td>
+         <td><input type="text" value="${item.原醫院}" class="edit-input"></td>
+         <td><input type="text" value="${item.原地點}" class="edit-input"></td>
+         <td><input type="text" value="${item.醫院}" class="edit-input"></td>
+         <td><input type="text" value="${item.地點}" class="edit-input"></td>
+         <td><input type="text" value="${item.醫生姓名}" class="edit-input"></td>
+         <td><input type="text" value="${item.病人姓名}" class="edit-input"></td>
+         <td><input type="text" value="${item.搭配產品}" class="edit-input"></td>
+         <td><input type="text" value="${item.庫房狀態}" class="edit-input"></td>
+         <td>
+          <button class="saveButton" data-id="${item.id}">儲存</button>
+          <button class="deleteButton" data-id="${item.id}">刪除</button>
+        </td>
+          
+        `;
+        resultTable.appendChild(row);
+      });
+    } catch (error) {
+      console.error("Error fetching data:", error);
+    }
+  });
+ document.addEventListener("click", async function (event) {
+  if (event.target.classList.contains("saveButton")) {
+    const row = event.target.closest("tr");
+    const id = event.target.dataset.id;
+
+    const updatedData = {
+      區域: row.children[0].querySelector("input").value,
+      人員: row.children[1].querySelector("input").value,
+      儀器種類: row.children[2].querySelector("input").value,
+      序號: row.children[3].querySelector("input").value,
+      日期: row.children[4].querySelector("input").value,
+      原醫院: row.children[5].querySelector("input").value,
+      原地點: row.children[6].querySelector("input").value,
+      醫院: row.children[7].querySelector("input").value,
+      地點: row.children[8].querySelector("input").value,
+      醫生姓名: row.children[9].querySelector("input").value,
+      病人姓名: row.children[10].querySelector("input").value,
+      搭配產品: row.children[11].querySelector("input").value,
+      庫房狀態: row.children[12].querySelector("input").value
+    };
+
+    try {
+      const { error } = await supabase
+        .from('佑康測試')
+        .update(updatedData)
+        .eq('id', id);
+
+      if (error) {
+        console.error("更新失敗:", error);
+        alert("更新失敗！");
+      } else {
+        alert("更新成功！");
+      }
+    } catch (error) {
+      console.error("更新錯誤:", error);
+    }
+  }
+});  
+  document.addEventListener("click", async function (event) {
+  if (event.target.classList.contains("deleteButton")) {
+    const row = event.target.closest("tr");
+    const id = event.target.dataset.id;
+
+    if (!confirm("確定要刪除此資料嗎？")) return;
+
+    try {
+      const { error } = await supabase
+        .from('佑康測試')
+        .delete()
+        .eq('id', id);
+
+      if (error) {
+        console.error("刪除失敗:", error);
+        alert("刪除失敗！");
+      } else {
+        row.remove();
+        alert("刪除成功！");
+      }
+    } catch (error) {
+      console.error("刪除錯誤:", error);
+    }
+  }
+});
+
+async function getRecordCount() {
+            let { count, error } = await supabase
+                .from("佑康測試")
+                .select("*", { count: "exact", head: true });
+
+            if (error) {
+                console.error("讀取資料錯誤:", error);
+                recordCountElement.textContent = "載入失敗";
+            } else {
+                recordCountElement.textContent = count;
+            }
+        }
+
+        // 🚀 清空 `佑康測試` 資料表
+        async function clearAllData() {
+            if (!confirm("確定要刪除所有資料嗎？這個動作無法復原！")) return;
+            
+            let { error } = await supabase.from("佑康測試").delete().neq("id", 0);
+
+            if (error) {
+                console.error("刪除資料錯誤:", error);
+                alert("刪除失敗");
+            } else {
+                alert("資料已清空");
+                getRecordCount();  // 重新取得筆數
+            }
+        }
+
+        // 🔄 初次載入時獲取資料筆數
+        getRecordCount();
+
+        // 📌 綁定清空按鈕
+        clearDataBtn.addEventListener('click', clearAllData);  
+ 
+ document.addEventListener("DOMContentLoaded", function() {
+            document.getElementById("syncButton").addEventListener("click", function() {
+                fetch("https://script.google.com/macros/s/你的新ID/exec")  // 替換你的 Google Apps Script URL
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById("status").innerText = "同步成功：" + data.message;
+                })
+                .catch(error => {
+                    document.getElementById("status").innerText = "同步失敗：" + error;
+                });
+            });
+        });
+
+  </script>
+
+</body>
+</html>
